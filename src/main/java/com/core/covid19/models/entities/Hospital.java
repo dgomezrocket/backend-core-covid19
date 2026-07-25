@@ -29,7 +29,7 @@ public class Hospital implements Serializable {
 	@Column(nullable=false, length=300)
 	private String name;
 
-	@Column(nullable=false, length=1000)
+	@Column(nullable=true, length=1000)
 	private String code;
 
 	@Column(nullable=false, length=1000)
@@ -47,7 +47,7 @@ public class Hospital implements Serializable {
 	@Column(nullable=true, length=100)
 	private String director;
 
-	@Column(nullable=false, length=100)
+	@Column(nullable=true, length=100)
 	private String type;
 
 	//bi-directional many-to-one association to Location
