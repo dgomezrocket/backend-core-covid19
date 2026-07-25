@@ -58,7 +58,7 @@ public class HospitalService {
 	public void save(HospitalRequest data) {
 		Hospital h = new Hospital();
 		if (data.getId() != null)
-			h = hospitalRepo.findById(data.getId()).orElse(new Hospital());
+			h = hospitalRepo.getOne(data.getId());
 		h.setName(data.getName());
 		h.setCode(data.getCode());
 		h.setDirector(data.getDirector());
@@ -72,15 +72,12 @@ public class HospitalService {
 		} else {
 			Location l = h.getLocation();
 			l.setLatitude(data.getLatitude());
-			l.setLongitude(data.getLongitude());
+			l.setLongitude(l.getLongitude());
 			locationRepo.save(l);
 			h.setLocation(l);
 		}
 		if (data.getDistrict() != null) {
-			District district = districtRepo.findById(data.getDistrict()).orElse(null);
-			if (district == null) {
-				throw new IllegalArgumentException("El distrito con ID " + data.getDistrict() + " no existe");
-			};
+			District district = districtRepo.getOne(data.getDistrict());
 			h.setDistrict(district);
 		}
 		hospitalRepo.save(h);
