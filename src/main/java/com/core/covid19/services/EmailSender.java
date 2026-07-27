@@ -5,18 +5,14 @@ import org.springframework.stereotype.Service;
 
 import java.util.Properties;
 import java.util.regex.Pattern;
-import javax.mail.BodyPart;
 import javax.mail.Message;
 import javax.mail.MessagingException;
-import javax.mail.Multipart;
 import javax.mail.PasswordAuthentication;
 import javax.mail.Session;
 import javax.mail.Transport;
 import javax.mail.internet.AddressException;
 import javax.mail.internet.InternetAddress;
-import javax.mail.internet.MimeBodyPart;
 import javax.mail.internet.MimeMessage;
-import javax.mail.internet.MimeMultipart;
 
 @Service
 public class EmailSender {
@@ -53,25 +49,25 @@ public class EmailSender {
         if (email == null) {
             return null;
         }
-        
+    
         // Eliminar TODOS los espacios en blanco (incluyendo tabs, newlines, etc.)
         String cleaned = email.replaceAll("\\s+", "");
-        
+    
         // Eliminar caracteres de control (0x00-0x1F y 0x7F-0x9F)
         cleaned = cleaned.replaceAll("[\\p{Cntrl}]", "");
-        
+    
         // Eliminar caracteres no ASCII (mantener solo ASCII imprimible)
         cleaned = cleaned.replaceAll("[^\\x20-\\x7E]", "");
-        
+    
         // Trim final por si acaso
         cleaned = cleaned.trim();
-        
+    
         // Validar formato básico de email
         if (!cleaned.isEmpty() && !EMAIL_PATTERN.matcher(cleaned).matches()) {
             System.err.println("[EMAIL] Formato inválido después de sanitización: '" + cleaned + "'");
             return null;
         }
-        
+    
         return cleaned.isEmpty() ? null : cleaned;
     }
 
@@ -89,6 +85,25 @@ public class EmailSender {
         }
     }
 
+    /**
+     * Crea la sesión SMTP configurada
+     */
+    private Session createSession() {
+        Properties prop = new Properties();
+        prop.put("mail.smtp.host", host);
+        prop.put("mail.smtp.port", port);
+        prop.put("mail.smtp.auth", "true");
+        prop.put("mail.smtp.starttls.enable", "true");
+        prop.put("mail.smtp.starttls.required", "true");
+        prop.put("mail.smtp.ssl.protocols", "TLSv1.2");
+        
+        return Session.getInstance(prop, new javax.mail.Authenticator() {
+            protected PasswordAuthentication getPasswordAuthentication() {
+                return new PasswordAuthentication(username, password);
+            }
+        });
+    }
+
     public void send(String correoDestinatario, String asunto, String mensaje) {
 
         // Verificar si el servicio de email está configurado
@@ -99,7 +114,7 @@ public class EmailSender {
 
         // Sanitizar el email antes de usarlo
         String sanitizedEmail = sanitizeEmail(correoDestinatario);
-        
+    
         // Validar que el email no quedó vacío después de la sanitización
         if (sanitizedEmail == null || sanitizedEmail.isEmpty()) {
             System.err.println("[EMAIL] Email original '" + correoDestinatario + "' es inválido o quedó vacío tras la sanitización. No se enviará correo.");
@@ -112,34 +127,34 @@ public class EmailSender {
             return;
         }
 
-        Properties prop = new Properties();
-        prop.put("mail.smtp.host", host);
-        prop.put("mail.smtp.port", port);
-        prop.put("mail.smtp.auth", "true");
-        prop.put("mail.smtp.starttls.enable", "true");  // Cambio aquí
-        prop.put("mail.smtp.starttls.required", "true"); // Nueva línea
-
-        Session session = Session.getInstance(prop, new javax.mail.Authenticator() {
-            protected PasswordAuthentication getPasswordAuthentication() {
-                return new PasswordAuthentication(username, password);
-            }
-        });
-
+        Transport transport = null;
         try {
-
+            Session session = createSession();
+            
             Message message = new MimeMessage(session);
             message.setFrom(new InternetAddress(username));
             message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(sanitizedEmail));
             message.setSubject(asunto);
             message.setContent(mensaje, "text/html; charset=utf-8");
 
-            Transport.send(message);
+            // Usar Transport explícitamente para mejor control de STARTTLS
+            transport = session.getTransport("smtp");
+            transport.connect(host, username, password);
+            transport.sendMessage(message, message.getAllRecipients());
 
             System.out.println("[EMAIL] ✓ Correo enviado exitosamente a: " + sanitizedEmail);
 
         } catch (MessagingException e) {
             System.err.println("[EMAIL] ✗ Error al enviar correo a '" + sanitizedEmail + "' : " + e.getMessage());
             System.err.println("[EMAIL] Causa raíz: " + (e.getCause() != null ? e.getCause().getMessage() : "No disponible"));
+        } finally {
+            if (transport != null) {
+                try {
+                    transport.close();
+                } catch (MessagingException e) {
+                    System.err.println("[EMAIL] Error al cerrar transporte: " + e.getMessage());
+                }
+            }
         }
     }
 
@@ -154,7 +169,7 @@ public class EmailSender {
 
         // Sanitizar el email antes de usarlo
         String sanitizedEmail = sanitizeEmail(correoDestinatario);
-        
+    
         // Validar que el email no quedó vacío después de la sanitización
         if (sanitizedEmail == null || sanitizedEmail.isEmpty()) {
             String errorMsg = "El email original '" + correoDestinatario + "' es inválido o contiene caracteres no permitidos";
@@ -169,34 +184,34 @@ public class EmailSender {
             throw new Exception(errorMsg);
         }
 
-        Properties prop = new Properties();
-        prop.put("mail.smtp.host", host);
-        prop.put("mail.smtp.port", port);
-        prop.put("mail.smtp.auth", "true");
-        prop.put("mail.smtp.starttls.enable", "true");  // Cambio aquí
-        prop.put("mail.smtp.starttls.required", "true"); // Nueva línea
-
-        Session session = Session.getInstance(prop, new javax.mail.Authenticator() {
-            protected PasswordAuthentication getPasswordAuthentication() {
-                return new PasswordAuthentication(username, password);
-            }
-        });
-
+        Transport transport = null;
         try {
-
+            Session session = createSession();
+            
             Message message = new MimeMessage(session);
             message.setFrom(new InternetAddress(username));
             message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(sanitizedEmail));
             message.setSubject(asunto);
             message.setContent(mensaje, "text/html; charset=utf-8");
 
-            Transport.send(message);
+            // Usar Transport explícitamente para mejor control de STARTTLS
+            transport = session.getTransport("smtp");
+            transport.connect(host, username, password);
+            transport.sendMessage(message, message.getAllRecipients());
 
             System.out.println("[EMAIL] ✓ Correo enviado exitosamente a: " + sanitizedEmail);
 
         } catch (MessagingException e) {
             System.err.println("[EMAIL] ✗ Error al enviar correo a '" + sanitizedEmail + "' : " + e.getMessage());
             throw new Exception("Ocurrió un error al enviar correo: " + e.getMessage());
+        } finally {
+            if (transport != null) {
+                try {
+                    transport.close();
+                } catch (MessagingException e) {
+                    System.err.println("[EMAIL] Error al cerrar transporte: " + e.getMessage());
+                }
+            }
         }
     }
 }
