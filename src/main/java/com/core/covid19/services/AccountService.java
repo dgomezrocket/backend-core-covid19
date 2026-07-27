@@ -121,8 +121,15 @@ public class AccountService {
 		RoleAccount roleAccount = new RoleAccount(pk);
 		roleAccountRepo.save(roleAccount);
 
-		String mensaje = getMessage(data.getEmail(), data.getPassword());
-		emailSender.send(data.getEmail(), "Validar correo", mensaje);
+		// Enviar correo en un bloque try-catch separado para que no afecte la creación del médico
+		try {
+			String mensaje = getMessage(data.getEmail(), data.getPassword());
+			emailSender.send(data.getEmail(), "Validar correo", mensaje);
+		} catch (Exception e) {
+			System.err.println("No se pudo enviar el correo de validación a " + data.getEmail() + ": " + e.getMessage());
+			// El médico se guarda exitosamente aunque falle el envío del correo
+		}
+		
 		return a;
 	}
 
@@ -397,8 +404,14 @@ public class AccountService {
 				RoleAccount roleAccount = new RoleAccount(pk);
 				roleAccountRepo.save(roleAccount);
 
-				String mensaje = getMessage(email, password);
-				emailSender.send(email, "Validar correo", mensaje);
+				// Enviar correo en un bloque try-catch separado para que no afecte la carga
+				try {
+					String mensaje = getMessage(email, password);
+					emailSender.send(email, "Validar correo", mensaje);
+				} catch (Exception e) {
+					System.err.println("No se pudo enviar el correo de validación a " + email + ": " + e.getMessage());
+					// Continuar con la siguiente fila aunque falle el envío del correo
+				}
 			}
 		}
 	}

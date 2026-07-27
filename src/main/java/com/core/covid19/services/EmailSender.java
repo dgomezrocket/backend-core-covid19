@@ -32,7 +32,27 @@ public class EmailSender {
     @Value("${mail.smtp.pass}")
     private String password;
 
+    /**
+     * Sanitiza un email eliminando caracteres no ASCII y espacios sobrantes
+     */
+    private String sanitizeEmail(String email) {
+        if (email == null) {
+            return null;
+        }
+        // Elimina caracteres no ASCII y espacios
+        return email.replaceAll("[^\\x00-\\x7F]", "").trim();
+    }
+
     public void send(String correoDestinatario, String asunto, String mensaje) {
+
+        // Sanitizar el email antes de usarlo
+        String sanitizedEmail = sanitizeEmail(correoDestinatario);
+        
+        // Validar que el email no quedó vacío después de la sanitización
+        if (sanitizedEmail == null || sanitizedEmail.isEmpty()) {
+            System.err.println("El email es inválido o quedó vacío tras la sanitización. No se enviará correo.");
+            return;
+        }
 
         Properties prop = new Properties();
         prop.put("mail.smtp.host", host);
@@ -51,21 +71,30 @@ public class EmailSender {
 
             Message message = new MimeMessage(session);
             message.setFrom(new InternetAddress(username));
-            message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(correoDestinatario));
+            message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(sanitizedEmail));
             message.setSubject(asunto);
             message.setContent(mensaje, "text/html; charset=utf-8");
 
             Transport.send(message);
 
-            System.err.println("Correo enviado a : " + correoDestinatario);
+            System.err.println("Correo enviado a : " + sanitizedEmail);
 
         } catch (MessagingException e) {
-            System.err.println("Error al enviar correo a " + correoDestinatario + " : " + e.getMessage());
+            System.err.println("Error al enviar correo a " + sanitizedEmail + " : " + e.getMessage());
         }
     }
 
     public void sendEmail(String correoDestinatario, String asunto, String mensaje) throws Exception {
 
+        // Sanitizar el email antes de usarlo
+        String sanitizedEmail = sanitizeEmail(correoDestinatario);
+        
+        // Validar que el email no quedó vacío después de la sanitización
+        if (sanitizedEmail == null || sanitizedEmail.isEmpty()) {
+            System.err.println("El email es inválido o quedó vacío tras la sanitización. No se enviará correo.");
+            throw new Exception("El email proporcionado es inválido o contiene caracteres no permitidos");
+        }
+
         Properties prop = new Properties();
         prop.put("mail.smtp.host", host);
         prop.put("mail.smtp.port", port);
@@ -83,16 +112,16 @@ public class EmailSender {
 
             Message message = new MimeMessage(session);
             message.setFrom(new InternetAddress(username));
-            message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(correoDestinatario));
+            message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(sanitizedEmail));
             message.setSubject(asunto);
             message.setContent(mensaje, "text/html; charset=utf-8");
 
             Transport.send(message);
 
-            System.err.println("Correo enviado a : " + correoDestinatario);
+            System.err.println("Correo enviado a : " + sanitizedEmail);
 
         } catch (MessagingException e) {
-            System.err.println("Error al enviar correo a " + correoDestinatario + " : " + e.getMessage());
+            System.err.println("Error al enviar correo a " + sanitizedEmail + " : " + e.getMessage());
             throw new Exception("Ocurrio un Error al enviar correo");
         }
     }
