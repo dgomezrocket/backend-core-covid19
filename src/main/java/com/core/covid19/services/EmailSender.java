@@ -116,8 +116,8 @@ public class EmailSender {
         prop.put("mail.smtp.host", host);
         prop.put("mail.smtp.port", port);
         prop.put("mail.smtp.auth", "true");
-        prop.put("mail.smtp.socketFactory.port", port);
-        prop.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
+        prop.put("mail.smtp.starttls.enable", "true");  // Cambio aquí
+        prop.put("mail.smtp.starttls.required", "true"); // Nueva línea
 
         Session session = Session.getInstance(prop, new javax.mail.Authenticator() {
             protected PasswordAuthentication getPasswordAuthentication() {
@@ -173,8 +173,8 @@ public class EmailSender {
         prop.put("mail.smtp.host", host);
         prop.put("mail.smtp.port", port);
         prop.put("mail.smtp.auth", "true");
-        prop.put("mail.smtp.socketFactory.port", port);
-        prop.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
+        prop.put("mail.smtp.starttls.enable", "true");  // Cambio aquí
+        prop.put("mail.smtp.starttls.required", "true"); // Nueva línea
 
         Session session = Session.getInstance(prop, new javax.mail.Authenticator() {
             protected PasswordAuthentication getPasswordAuthentication() {
