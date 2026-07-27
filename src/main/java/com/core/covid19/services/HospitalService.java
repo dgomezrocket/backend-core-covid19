@@ -56,31 +56,53 @@ public class HospitalService {
 	}
 
 	public void save(HospitalRequest data) {
-		Hospital h = new Hospital();
-		if (data.getId() != null)
-			h = hospitalRepo.getOne(data.getId());
-		h.setName(data.getName());
-		h.setCode(data.getCode());
-		h.setDirector(data.getDirector());
-		h.setAddress(data.getAddress());
-		h.setArea(data.getArea());
-		h.setPhone(data.getPhone());
-		if (h.getLocation() == null) {
-			Location l = new Location(data.getLatitude(), data.getLongitude());
-			Location location = locationRepo.save(l);
-			h.setLocation(location);
-		} else {
-			Location l = h.getLocation();
-			l.setLatitude(data.getLatitude());
-			l.setLongitude(l.getLongitude());
-			locationRepo.save(l);
-			h.setLocation(l);
+		try {
+			Hospital h = new Hospital();
+			if (data.getId() != null) {
+				h = hospitalRepo.findById(data.getId()).orElse(new Hospital());
+			}
+			
+			// Validación
+			if (data.getName() == null || data.getName().trim().isEmpty()) {
+				throw new IllegalArgumentException("El nombre del hospital es obligatorio");
+			}
+			
+			h.setName(data.getName());
+			h.setCode(data.getCode() != null ? data.getCode() : "");
+			h.setDirector(data.getDirector());
+			h.setAddress(data.getAddress() != null ? data.getAddress() : "");
+			h.setArea(data.getArea() != null ? data.getArea() : "");
+			h.setPhone(data.getPhone());
+			h.setType(data.getType() != null ? data.getType() : "PUBLICO");
+			
+			// Location
+			if (h.getLocation() == null) {
+				Location l = new Location(data.getLatitude(), data.getLongitude());
+				Location location = locationRepo.save(l);
+				h.setLocation(location);
+			} else {
+				Location l = h.getLocation();
+				l.setLatitude(data.getLatitude());
+				l.setLongitude(data.getLongitude());
+				locationRepo.save(l);
+				h.setLocation(l);
+			}
+			
+			// District
+			if (data.getDistrict() != null) {
+				District district = districtRepo.findById(data.getDistrict())
+						.orElseThrow(() -> new IllegalArgumentException(
+								"El distrito con ID " + data.getDistrict() + " no existe"));
+				h.setDistrict(district);
+			}
+			
+			hospitalRepo.save(h);
+		} catch (Exception e) {
+			System.err.println("ERROR en HospitalService.save():");
+			System.err.println("Data recibida: " + data);
+			e.printStackTrace();
+			throw e;
 		}
-		if (data.getDistrict() != null) {
-			District district = districtRepo.getOne(data.getDistrict());
-			h.setDistrict(district);
-		}
-		hospitalRepo.save(h);
 	}
 
 	public List<Hospital> getHospitalsByDoctor(Integer idDoctor) {

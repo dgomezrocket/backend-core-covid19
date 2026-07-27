@@ -1,11 +1,11 @@
 package com.core.covid19.controllers;
 
 import com.core.covid19.models.entities.Hospital;
-import com.core.covid19.models.entities.Person;
-import com.core.covid19.models.requests.DoctorRequest;
 import com.core.covid19.models.requests.HospitalRequest;
 import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import com.core.covid19.authentication.util.JwtUtil;
@@ -14,7 +14,9 @@ import com.core.covid19.services.HospitalService;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/hospitals")
@@ -44,8 +46,23 @@ public class HospitalController {
 	}
 
 	@PostMapping
-	public void save(@RequestBody HospitalRequest data) {
-		hospitalService.save(data);
+	public ResponseEntity<?> save(@RequestBody HospitalRequest data) {
+		try {
+			hospitalService.save(data);
+			Map<String, String> response = new HashMap<>();
+			response.put("message", "Hospital guardado exitosamente");
+			return ResponseEntity.ok(response);
+		} catch (IllegalArgumentException e) {
+			Map<String, String> error = new HashMap<>();
+			error.put("error", e.getMessage());
+			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+		} catch (Exception e) {
+			e.printStackTrace();
+			Map<String, String> error = new HashMap<>();
+			error.put("error", "Error interno: " + e.getMessage());
+			error.put("type", e.getClass().getName());
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+		}
 	}
 
 	@GetMapping(value="/my")
@@ -55,7 +72,6 @@ public class HospitalController {
 
 	@PostMapping(value="/cargar")
 	public void cargar(@RequestParam("file") MultipartFile file) throws IOException, InvalidFormatException {
-
 		hospitalService.cargar(file);
 	}
 }
