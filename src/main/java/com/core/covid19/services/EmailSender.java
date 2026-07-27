@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.Properties;
+import java.util.regex.Pattern;
 import javax.mail.BodyPart;
 import javax.mail.Message;
 import javax.mail.MessagingException;
@@ -32,25 +33,82 @@ public class EmailSender {
     @Value("${mail.smtp.pass}")
     private String password;
 
+    // Patrón para validar formato de email
+    private static final Pattern EMAIL_PATTERN = Pattern.compile(
+        "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$"
+    );
+
     /**
-     * Sanitiza un email eliminando caracteres no ASCII y espacios sobrantes
+     * Verifica si el servicio de email está configurado
+     */
+    private boolean isEmailConfigured() {
+        return username != null && !username.trim().isEmpty() 
+            && password != null && !password.trim().isEmpty();
+    }
+
+    /**
+     * Sanitiza un email eliminando caracteres no ASCII, espacios y caracteres de control
      */
     private String sanitizeEmail(String email) {
         if (email == null) {
             return null;
         }
-        // Elimina caracteres no ASCII y espacios
-        return email.replaceAll("[^\\x00-\\x7F]", "").trim();
+        
+        // Eliminar TODOS los espacios en blanco (incluyendo tabs, newlines, etc.)
+        String cleaned = email.replaceAll("\\s+", "");
+        
+        // Eliminar caracteres de control (0x00-0x1F y 0x7F-0x9F)
+        cleaned = cleaned.replaceAll("[\\p{Cntrl}]", "");
+        
+        // Eliminar caracteres no ASCII (mantener solo ASCII imprimible)
+        cleaned = cleaned.replaceAll("[^\\x20-\\x7E]", "");
+        
+        // Trim final por si acaso
+        cleaned = cleaned.trim();
+        
+        // Validar formato básico de email
+        if (!cleaned.isEmpty() && !EMAIL_PATTERN.matcher(cleaned).matches()) {
+            System.err.println("[EMAIL] Formato inválido después de sanitización: '" + cleaned + "'");
+            return null;
+        }
+        
+        return cleaned.isEmpty() ? null : cleaned;
+    }
+
+    /**
+     * Valida que el InternetAddress sea válido antes de usarlo
+     */
+    private boolean isValidInternetAddress(String email) {
+        try {
+            InternetAddress address = new InternetAddress(email);
+            address.validate(); // Valida el formato según RFC 822
+            return true;
+        } catch (AddressException e) {
+            System.err.println("[EMAIL] Dirección no válida según RFC 822: '" + email + "' - " + e.getMessage());
+            return false;
+        }
     }
 
     public void send(String correoDestinatario, String asunto, String mensaje) {
+
+        // Verificar si el servicio de email está configurado
+        if (!isEmailConfigured()) {
+            System.err.println("[EMAIL] Servicio de email NO configurado. No se enviará correo a: " + correoDestinatario);
+            return;
+        }
 
         // Sanitizar el email antes de usarlo
         String sanitizedEmail = sanitizeEmail(correoDestinatario);
         
         // Validar que el email no quedó vacío después de la sanitización
         if (sanitizedEmail == null || sanitizedEmail.isEmpty()) {
-            System.err.println("El email es inválido o quedó vacío tras la sanitización. No se enviará correo.");
+            System.err.println("[EMAIL] Email original '" + correoDestinatario + "' es inválido o quedó vacío tras la sanitización. No se enviará correo.");
+            return;
+        }
+
+        // Validar con InternetAddress antes de intentar enviar
+        if (!isValidInternetAddress(sanitizedEmail)) {
+            System.err.println("[EMAIL] Email '" + sanitizedEmail + "' no es válido. No se enviará correo.");
             return;
         }
 
@@ -77,22 +135,38 @@ public class EmailSender {
 
             Transport.send(message);
 
-            System.err.println("Correo enviado a : " + sanitizedEmail);
+            System.out.println("[EMAIL] ✓ Correo enviado exitosamente a: " + sanitizedEmail);
 
         } catch (MessagingException e) {
-            System.err.println("Error al enviar correo a " + sanitizedEmail + " : " + e.getMessage());
+            System.err.println("[EMAIL] ✗ Error al enviar correo a '" + sanitizedEmail + "' : " + e.getMessage());
+            System.err.println("[EMAIL] Causa raíz: " + (e.getCause() != null ? e.getCause().getMessage() : "No disponible"));
         }
     }
 
     public void sendEmail(String correoDestinatario, String asunto, String mensaje) throws Exception {
+
+        // Verificar si el servicio de email está configurado
+        if (!isEmailConfigured()) {
+            String errorMsg = "Servicio de email NO configurado. Configure mail.smtp.user y mail.smtp.pass";
+            System.err.println("[EMAIL] " + errorMsg);
+            throw new Exception(errorMsg);
+        }
 
         // Sanitizar el email antes de usarlo
         String sanitizedEmail = sanitizeEmail(correoDestinatario);
         
         // Validar que el email no quedó vacío después de la sanitización
         if (sanitizedEmail == null || sanitizedEmail.isEmpty()) {
-            System.err.println("El email es inválido o quedó vacío tras la sanitización. No se enviará correo.");
-            throw new Exception("El email proporcionado es inválido o contiene caracteres no permitidos");
+            String errorMsg = "El email original '" + correoDestinatario + "' es inválido o contiene caracteres no permitidos";
+            System.err.println("[EMAIL] " + errorMsg);
+            throw new Exception(errorMsg);
+        }
+
+        // Validar con InternetAddress antes de intentar enviar
+        if (!isValidInternetAddress(sanitizedEmail)) {
+            String errorMsg = "El email '" + sanitizedEmail + "' no tiene un formato válido";
+            System.err.println("[EMAIL] " + errorMsg);
+            throw new Exception(errorMsg);
         }
 
         Properties prop = new Properties();
@@ -118,11 +192,11 @@ public class EmailSender {
 
             Transport.send(message);
 
-            System.err.println("Correo enviado a : " + sanitizedEmail);
+            System.out.println("[EMAIL] ✓ Correo enviado exitosamente a: " + sanitizedEmail);
 
         } catch (MessagingException e) {
-            System.err.println("Error al enviar correo a " + sanitizedEmail + " : " + e.getMessage());
-            throw new Exception("Ocurrio un Error al enviar correo");
+            System.err.println("[EMAIL] ✗ Error al enviar correo a '" + sanitizedEmail + "' : " + e.getMessage());
+            throw new Exception("Ocurrió un error al enviar correo: " + e.getMessage());
         }
     }
 }
