@@ -86,6 +86,16 @@ public class AccountService {
 		RoleAccount roleAccount = new RoleAccount(pk);
 		roleAccountRepo.save(roleAccount);
 
+		// Enviar correo de bienvenida/verificación
+		try {
+			String mensaje = getWelcomeMessage(accountRequest.getEmail(), accountRequest.getPassword());
+			emailSender.send(accountRequest.getEmail(), "Bienvenido - Verificación de cuenta", mensaje);
+			System.out.println("[SIGNUP] Correo de bienvenida enviado a: " + accountRequest.getEmail());
+		} catch (Exception e) {
+			System.err.println("[SIGNUP] No se pudo enviar el correo de bienvenida a " + accountRequest.getEmail() + ": " + e.getMessage());
+			// El usuario se registra exitosamente aunque falle el envío del correo
+		}
+
 		return a;
 	}
 
@@ -430,6 +440,25 @@ public class AccountService {
 		return mensaje.toString();
 	}
 
+	/**
+	 * Genera el mensaje de bienvenida para usuarios que se registran vía /signup
+	 */
+	private String getWelcomeMessage(String email, String password) {
+		final UserDetails userDetails = customUserDetailService.loadUserByUsername(email);
+		final String jwt = jwtTokenUtil.generateToken(userDetails);
+		String verificarEmail = urlBackend + "/accounts/verify?jwt=" + jwt;
+
+		StringBuilder mensaje = new StringBuilder();
+		mensaje.append("<h2>¡Bienvenido a CroniWeb!</h2>");
+		mensaje.append("<p>Gracias por registrarte. Tu cuenta ha sido creada exitosamente.</p>");
+		mensaje.append("<p><strong>Por favor verifica tu correo electrónico haciendo click en el siguiente enlace:</strong></p>");
+		mensaje.append("<p><a href=\"" + verificarEmail + "\" target=\"_blank\" style=\"background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;\">Verificar mi cuenta</a></p>");
+		mensaje.append("<p>O copia y pega este enlace en tu navegador:</p>");
+		mensaje.append("<p style=\"color: #666; font-size: 12px;\">" + verificarEmail + "</p>");
+		mensaje.append("<hr>");
+		mensaje.append("<p style=\"color: #999; font-size: 11px;\">Si no solicitaste esta cuenta, puedes ignorar este correo.</p>");
+		return mensaje.toString();
+	}
 	public ByteArrayOutputStream export() throws Exception {
 
 		XSSFWorkbook workbook = new XSSFWorkbook();
